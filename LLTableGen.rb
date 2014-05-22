@@ -3,10 +3,14 @@ require 'set'
 # 'nil' and '$' are predefined terminal token, 'nil' means empty action and '$' is the end flag of parsing.
 
 $start_lside_rule = ""
+$input_tokens = ["$"]
 $token_list = Set.new
 $gram_list = Hash.new
 $first_set = Hash.new
 $follow_set = Hash.new
+$nonterm_token_list = [] # [E, F, T, ...]
+$single_gram_list = [] # [{T->[E,tRp]}, ...]
+$ll_table = nil
 
 def construct_table_model(rule_file_name)
    lines = IO.readlines(rule_file_name) 
@@ -45,6 +49,7 @@ def construct_table_model(rule_file_name)
          end
       end
    end
+   $input_tokens.concat($token_list)
 end
 
 def construct_first_set()
@@ -169,9 +174,43 @@ def construct_follow_set
    end
 end
 
+def get_term_from_first_set(lhs)
+   ret_arr = []
+   lhs.each do |token|
+      if token != "nil"
+         # Is token a terminal?
+         if $input_tokens.include?(token)
+         else
+         end
+      end
+   end
+end
+
+def construct_ll_table
+   $nonterm_token_list = $gram_list.keys
+
+   # constrct single_gram_list, that is, one left hand side rule maps to only on right hand side rule.
+   $gram_list.each do |rhs, lhs_arr|
+      lhs_arr.each do |lhs|
+         single_gram = {rhs => lhs}
+         $single_gram_list << single_gram
+      end
+   end
+
+   # compute ll table
+   $ll_table = Array.new($gram_list.size, Array.new($token_list.size+1))
+   $single_gram_list.each do |gram|
+      # For each input terminal token and '$', if it is in the FIRST set of current grammar, add this grammar into ll table.
+      $input_tokens.each do |token|
+         #
+      end
+   end
+end
+
 construct_table_model(ARGV[0])
 construct_first_set
 construct_follow_set
+construct_ll_table
 
 #puts $start_lside_rule
 #puts "" 
@@ -181,4 +220,5 @@ puts "FIRST SET: #{$first_set}"
 puts ""
 puts "FOLLOW SET: #{$follow_set}"
 puts ""
-
+puts $single_gram_list
+puts ""
