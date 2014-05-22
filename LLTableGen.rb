@@ -3,13 +3,14 @@ require 'set'
 # 'nil' and '$' are predefined terminal token, 'nil' means empty action and '$' is the end flag of parsing.
 
 $start_lside_rule = ""
-$input_tokens = ["$"]
 $token_list = Set.new
 $gram_list = Hash.new
 $first_set = Hash.new
 $follow_set = Hash.new
+# For ll table construction
 $nonterm_token_list = [] # [E, F, T, ...]
 $single_gram_list = [] # [{T->[E,tRp]}, ...]
+$input_tokens = ["$"]
 $ll_table = nil
 
 def construct_table_model(rule_file_name)
@@ -49,7 +50,7 @@ def construct_table_model(rule_file_name)
          end
       end
    end
-   $input_tokens.concat($token_list)
+   $input_tokens.concat($token_list.to_a)
 end
 
 def construct_first_set()
@@ -174,16 +175,22 @@ def construct_follow_set
    end
 end
 
-def get_term_from_first_set(lhs)
-   ret_arr = []
-   lhs.each do |token|
-      if token != "nil"
-         # Is token a terminal?
-         if $input_tokens.include?(token)
-         else
-         end
+def get_first_set(rhs)
+   ret_set = Set.new
+   
+   rhs.each do |token|
+      if $input_tokens.include?(token)
+         ret_set.add(token)
+         break
+      elsif "nil" != token
+         first_tokens = $first_set[token]
+         first_tokens.each { |ft| ret_set.add(ft) if "nil" != ft }
+         break unless first_tokens.include?("nil")
       end
-   end
+   end 
+   ret_set.add("nil") if ret_set.empty?
+
+   return ret_set
 end
 
 def construct_ll_table
@@ -198,12 +205,26 @@ def construct_ll_table
    end
 
    # compute ll table
-   $ll_table = Array.new($gram_list.size, Array.new($token_list.size+1))
-   $single_gram_list.each do |gram|
+   $ll_table = Array.new($gram_list.size).map { |elem| elem = Array.new($input_tokens.size) }
+   $single_gram_list.each_index do |i| # gram: {rhs => [lhs, lhs, ...]}
       # For each input terminal token and '$', if it is in the FIRST set of current grammar, add this grammar into ll table.
-      $input_tokens.each do |token|
-         #
+      gram = $single_gram_list[i].flatten
+      row = $nonterm_token_list.find_index(gram[0])
+      first_set = get_first_set(gram[1])
+      first_set.each do |token|
+         if "nil" != token
+            col = $input_tokens.find_index(token)
+            $ll_table[row][col] = i
+         else
+            # add terminal token in follow set
+            $follow_set[gram[0]].each do |follow_token|
+               col = $input_tokens.find_index(follow_token)
+               $ll_table[row][col] = i
+            end      
+         end
       end
+
+      #puts $ll_table
    end
 end
 
@@ -216,9 +237,21 @@ construct_ll_table
 #puts "" 
 #puts $gram_list 
 #puts ""
+
 puts "FIRST SET: #{$first_set}"
 puts ""
+
 puts "FOLLOW SET: #{$follow_set}"
 puts ""
-puts $single_gram_list
+
+$single_gram_list.each_index { |i| puts "#{i}: #{$single_gram_list[i]}" }
 puts ""
+
+$input_tokens.each_index { |i| p "#{i}: #{$input_tokens[i]}" }
+puts ""
+
+$nonterm_token_list.each_index { |i| p "#{i}: #{$nonterm_token_list[i]}" }
+puts ""
+
+$ll_table.each { |row| p row }
+
